@@ -1,0 +1,17 @@
+[package]
+name = "animated-ascii"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+wgpu = "25.0"
+# env_logger = "0.10.1" # should be considered for more accurate GPU benchmarks
+pollster = "0.3"
+futures-intrusive = "0.5"
+bytemuck = { version = "1.16", features = ["derive", "min_const_generics"] }
+image = "0.25.6"
+# rand = "0.9.1"
+termion = "4.0.5"
+dirs = "6.0.0"
+lexopt = "0.3.1"
+sysinfo = "0.37.0"
