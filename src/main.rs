@@ -18,6 +18,10 @@ fn main() {
     let max_width = args.max_width;
     let max_height: f32 = args.max_height;
     let adapter_index = args.adapter_index;
+    let brightness = args.brightness;
+    let contrast = args.contrast;
+    let draw_edges = args.draw_edges;
+    let edge_threshold = args.edge_threshold;
 
     let term_size_char = termion::terminal_size().unwrap();
 
@@ -30,6 +34,13 @@ fn main() {
     let ffmpeg_config = core::FfmpegConfig {
         input_path: input.as_str(),
         fps: &fps,
+    };
+
+    let shader_config = core::utils::ShaderConfig {
+        brightness,
+        contrast,
+        draw_edges,
+        edge_threshold,
     };
 
     // establish connection to GPU
@@ -92,7 +103,7 @@ fn main() {
             cache_path: &cache_path,
         };
         core::process_frames(&ffmpeg_return.frame_count, &process_desc, cache_file,
-            ffmpeg_return.width, ffmpeg_return.height, max_width, max_height);
+            ffmpeg_return.width, ffmpeg_return.height, max_width, max_height, shader_config);
     }
     let frame_dims = read_frame_size(&config.cache_path);
     std::thread::spawn(move || {
@@ -144,8 +155,8 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
 
     let mut input_path: Option<String> = None;
     let mut fps: u16 = 24;
-    let mut brightness: f32 = 1.0;
-    let mut contrast: f32 = 1.0;
+    let mut brightness: f32 = 1.1;
+    let mut contrast: f32 = 1.1;
     let mut draw_edges: bool = true;
     let mut edge_threshold: f32 = 0.3;
     let mut overwrite_cache: bool = false;
