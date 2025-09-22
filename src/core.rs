@@ -8,7 +8,7 @@ mod sobel_shader;
 mod downscale_shader;
 
 #[path = "./utils.rs"]
-mod utils;
+pub mod utils;
 
 use std::process::Command;
 use std::fs;
@@ -85,7 +85,7 @@ pub fn get_frames(config: &FfmpegConfig, max_width: u16, max_height: u16) -> FFm
 
     // get media dimensions, used for resizing the source and choosing a tile resolution later
     let stdout = Command::new("ffprobe")
-        .args(["-hide_banner", "-log_level", "error", "-select_streams", "v:0", "-show_entries",
+        .args(["-hide_banner", "-select_streams", "v:0", "-show_entries",
             "stream=width,height","-of", "csv=s=x:p=0", config.input_path])
         .stdout(std::process::Stdio::piped())
         .output()
@@ -223,7 +223,7 @@ impl Benchmark {
 /// TODO:
 /// * Shader config
 pub fn process_frames(frame_count: &i32, process_desc: &ProcessDescriptor,
-    cache_file: File, width: u16, height: u16, max_width: u16, max_height: u16
+    cache_file: File, width: u16, height: u16, max_width: u16, max_height: u16, shader_config: utils::ShaderConfig,
 ) {
     println!("Processing frames...");
 
@@ -287,8 +287,10 @@ pub fn process_frames(frame_count: &i32, process_desc: &ProcessDescriptor,
     let frames_path = get_frames_path();
     for n in 1..frame_count + is_image {
         let frame_path = format!("{}/output_frame_{}.png",frames_path, n);
-        let new_benchmark = pollster::block_on(shader_process(frame_path.as_str(), &process_desc,
-            &cache_file,&dog_pipeline,&sobel_pipeline,&ds_pipeline, target_res));
+        let new_benchmark = pollster::block_on(shader_process(
+            frame_path.as_str(), &process_desc, &cache_file,&dog_pipeline,&sobel_pipeline,&ds_pipeline,
+            target_res, &shader_config,
+        ));
         
         benchmark.total_time += new_benchmark.total_time;
         benchmark.image_decode_time += new_benchmark.image_decode_time;
@@ -366,7 +368,8 @@ const ASCII_EDGES: &str = "|/_\\";
 /// text buffer to `cache_path` with the processed result.
 pub async fn shader_process(
     frame_path: &str, desc: &ProcessDescriptor, file: &File, dog_pipeline: &RenderPipeline,
-    sobel_pipeline: &RenderPipeline, ds_pipeline: &ComputePipeline, wg_size: WorkgroupSize
+    sobel_pipeline: &RenderPipeline, ds_pipeline: &ComputePipeline, wg_size: WorkgroupSize,
+    shader_config: &utils::ShaderConfig,
 ) -> Benchmark {
 
     let device = &desc.device;
@@ -437,6 +440,11 @@ pub async fn shader_process(
         size: texture_size,
         buffer_size: &ascii_buffer_size,
         ascii_style: ASCII_STYLE,
+
+        brightness: shader_config.brightness,
+        contrast: shader_config.contrast,
+        draw_edges: shader_config.draw_edges,
+        edge_threshold: shader_config.edge_threshold,
     }, ds_pipeline);
     
     // start processing the image. Each subsequent render uses the 

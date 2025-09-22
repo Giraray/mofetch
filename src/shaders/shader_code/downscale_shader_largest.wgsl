@@ -14,6 +14,11 @@ struct WorkgroupSize {
 @group(0) @binding(3) var<uniform> u_res: DogBinding;
 @group(0) @binding(4) var<uniform> u_quantize: f32;
 
+@group(0) @binding(5) var<uniform> u_brightness: f32;
+@group(0) @binding(6) var<uniform> u_contrast: f32;
+@group(0) @binding(7) var<uniform> u_draw_edges: i32;
+@group(0) @binding(8) var<uniform> u_edge_threshold: f32;
+
 fn vec4Equals(a: vec4<f32>, b: vec4<f32>) -> bool {
     var boolVec = a == b;
     if(boolVec.x == false || boolVec.y == false || boolVec.z == false || boolVec.w == false) {
@@ -37,14 +42,11 @@ fn quantize(luma: f32) -> f32 {
 }
 
 // TODO: this should be a pre-processing stage before DoG
-const BRIGHTNESS = 1.0;
-const CONTRAST = 1.1;
-const EDGE_TRESHOLD = 0.31;
 fn contrast(input: vec4<f32>) -> vec4<f32> {
     var tex = input;
-    tex.r = mix(0.5, tex.r + BRIGHTNESS - 1.0, CONTRAST);
-    tex.g = mix(0.5, tex.g + BRIGHTNESS - 1.0, CONTRAST);
-    tex.b = mix(0.5, tex.b + BRIGHTNESS - 1.0, CONTRAST);
+    tex.r = mix(0.5, tex.r + u_brightness - 1.0, u_contrast);
+    tex.g = mix(0.5, tex.g + u_brightness - 1.0, u_contrast);
+    tex.b = mix(0.5, tex.b + u_brightness - 1.0, u_contrast);
     tex.r = clamp(0.0, 1.0, tex.r);
     tex.g = clamp(0.0, 1.0, tex.g);
     tex.b = clamp(0.0, 1.0, tex.b);
@@ -118,7 +120,13 @@ fn main(
 
     // if there are NO detected sobel gradients in a tile, then skip this step
     var res = 0.0;
-    var edge_threshold = TILE_DIM * EDGE_TRESHOLD;
+    var edge_threshold = u_edge_threshold;
+    if(u_draw_edges == 1) {
+        edge_threshold *= TILE_DIM;
+    }
+    else {
+        edge_threshold = 999.0; // arbitrarily high to prevent edge draws
+    }
     if(!vec4Equals(vec4(0.0), histogram)) {
         var max = 0.0;
         if(histogram.r > max) {

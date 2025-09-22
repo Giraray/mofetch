@@ -32,9 +32,16 @@ pub struct DownscaleShaderStruct<'a> {
     pub size:  wgpu::Extent3d,
     pub buffer_size: &'a u64,
     pub ascii_style: &'a str,
+
+    pub brightness: f32,
+    pub contrast: f32,
+    pub draw_edges: bool,
+    pub edge_threshold: f32,
 }
 
-pub fn new<'a>(desc: DownscaleShaderStruct, pipeline: &'a wgpu::ComputePipeline) -> DownscaleShader<'a> {
+pub fn new<'a>(
+    desc: DownscaleShaderStruct, pipeline: &'a wgpu::ComputePipeline,
+) -> DownscaleShader<'a> {
 
     let device = desc.device;
     let texture = desc.texture;
@@ -60,6 +67,31 @@ pub fn new<'a>(desc: DownscaleShaderStruct, pipeline: &'a wgpu::ComputePipeline)
     let quant_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
         label: Some("quant buffer"),
         contents: bytemuck::cast_slice(&[quantize]),
+        usage: wgpu::BufferUsages::UNIFORM
+    });
+
+    let brightness_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("brightness buffer"),
+        contents: bytemuck::cast_slice(&[desc.brightness]),
+        usage: wgpu::BufferUsages::UNIFORM
+    });
+    
+    let contrast_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("contrast buffer"),
+        contents: bytemuck::cast_slice(&[desc.contrast]),
+        usage: wgpu::BufferUsages::UNIFORM
+    });
+
+    let draw_edges = if desc.draw_edges == true {1} else {0};
+    let draw_edge_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("draw edge buffer"),
+        contents: bytemuck::cast_slice(&[draw_edges]),
+        usage: wgpu::BufferUsages::UNIFORM
+    });
+
+    let threshold_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+        label: Some("threshold buffer"),
+        contents: bytemuck::cast_slice(&[desc.edge_threshold]),
         usage: wgpu::BufferUsages::UNIFORM
     });
 
@@ -91,7 +123,25 @@ pub fn new<'a>(desc: DownscaleShaderStruct, pipeline: &'a wgpu::ComputePipeline)
         wgpu::BindGroupEntry {
             binding: 4,
             resource: quant_buffer.as_entire_binding(),
-        }
+        },
+
+        // shader configs
+        wgpu::BindGroupEntry {
+            binding: 5,
+            resource: brightness_buffer.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 6,
+            resource: contrast_buffer.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 7,
+            resource: draw_edge_buffer.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 8,
+            resource: threshold_buffer.as_entire_binding(),
+        },
     ];
     let bind_group = device.create_bind_group(
         &wgpu::BindGroupDescriptor {

@@ -51,3 +51,10 @@ pub fn create_render_pipeline_desc(module: &wgpu::ShaderModule) -> wgpu::RenderP
     };
     return pipeline_desc;
 }
+
+pub struct ShaderConfig {
+    pub brightness: f32,
+    pub contrast: f32,
+    pub draw_edges: bool,
+    pub edge_threshold: f32,
+}

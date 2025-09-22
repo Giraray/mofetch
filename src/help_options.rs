@@ -100,7 +100,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let brightness = HelpOption {
         short: Some("b".into()),
         long: Some("brightness".into()),
-        desc: Some("Set the brightness of the input (not implemented yet)".into()),
+        desc: Some("Set the brightness of the input".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(brightness);
@@ -109,7 +109,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let contrast = HelpOption {
         short: Some("c".into()),
         long: Some("contrast".into()),
-        desc: Some("Set the contrast of the input (not implemented yet)".into()),
+        desc: Some("Set the contrast of the input".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(contrast);
@@ -136,7 +136,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let no_edges = HelpOption {
         short: Some("n".into()),
         long: Some("no-edges".into()),
-        desc: Some("Don't draw ASCII edge lines (/ \\ _ |) (not implemented yet)".into()),
+        desc: Some("Don't draw ASCII edge lines (/ \\ _ |)".into()),
         datatype: None,
     };
     shader_options.push(no_edges);
@@ -145,7 +145,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let edge_threshold = HelpOption {
         short: Some("t".into()),
         long: Some("edge-threshold".into()),
-        desc: Some("Set the required percentage of edge strength in each tile for a tile to be rendered as an edge (0..1) (not implemented yet)".into()),
+        desc: Some("Set the required percentage of edge strength in each tile for a tile to be rendered as an edge (0..1)".into()),
         datatype: Some("float".into()),
     };
     shader_options.push(edge_threshold);

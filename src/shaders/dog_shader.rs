@@ -16,7 +16,10 @@ pub struct DogShader<'a> {
     pub output_buffer: wgpu::Buffer,
 }
 
-pub fn new<'a>(device: &wgpu::Device, texture: &wgpu::Texture, size: wgpu::Extent3d, pipeline: &'a wgpu::RenderPipeline) -> DogShader<'a> {
+pub fn new<'a>(
+    device: &wgpu::Device, texture: &wgpu::Texture, size: wgpu::Extent3d,
+    pipeline: &'a wgpu::RenderPipeline, 
+) -> DogShader<'a> {
 
     // bindgroup entries
     let texture_view = texture.create_view(&wgpu::TextureViewDescriptor::default());
