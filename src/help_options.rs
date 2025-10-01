@@ -42,6 +42,14 @@ pub fn init_options() -> Vec<OptionGroup> {
     };
     information_options.push(verbose);
 
+    let sysinfo = HelpOption {
+        short: Some("I".into()),
+        long: Some("hide-info".into()),
+        desc: Some("Do not show system info, and only render the thumbnail".into()),
+        datatype: None,
+    };
+    information_options.push(sysinfo);
+
     // adapters
     let gpus = HelpOption {
         short: None,
@@ -73,7 +81,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_width = HelpOption {
         short: Some("W".into()),
         long: Some("max-width".into()),
-        desc: Some("Set max width of source image to (0..n) * 100% of terminal width. Respects source aspect ratio".into()),
+        desc: Some("Set max width of source image to (0..n) * 100% of terminal width".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_width);
@@ -82,7 +90,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_height = HelpOption {
         short: Some("H".into()),
         long: Some("max-height".into()),
-        desc: Some("Set max height of source image to (0..n) * 100% of terminal height. Respects source aspect ratio".into()),
+        desc: Some("Set max height of source image to (0..n) * 100% of terminal height".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_height);
@@ -145,7 +153,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let edge_threshold = HelpOption {
         short: Some("t".into()),
         long: Some("edge-threshold".into()),
-        desc: Some("Set the required percentage of edge strength in each tile for a tile to be rendered as an edge (0..1)".into()),
+        desc: Some("Set the required percentage of edge strength in each tile for a tile to be rendered as an edge (0..1). Increasing this value can be useful if stronger edgelines are desired, while decreasing it can reduce the noise created by too many edges from the input.".into()),
         datatype: Some("float".into()),
     };
     shader_options.push(edge_threshold);

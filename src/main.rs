@@ -1,6 +1,6 @@
 mod core;
 mod help_options;
-mod info;
+mod fetch;
 
 use std::{panic, path::Path, io::Write};
 use lexopt::Arg::{Long, Short};
@@ -22,6 +22,7 @@ fn main() {
     let contrast = args.contrast;
     let draw_edges = args.draw_edges;
     let edge_threshold = args.edge_threshold;
+    let hide_info = args.hide_info;
 
     let term_size_char = termion::terminal_size().unwrap();
 
@@ -107,7 +108,8 @@ fn main() {
     }
     let frame_dims = read_frame_size(&config.cache_path);
     std::thread::spawn(move || {
-        info::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
+        if hide_info {return;}
+        fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
     });
     core::print_frame_loop(&config, is_image);
 }
@@ -148,6 +150,7 @@ pub struct UserArgs {
     pub max_width: f32,
     pub max_height: f32,
     pub adapter_index: usize,
+    pub hide_info: bool,
 }
 
 fn parse_args() -> Result<UserArgs, lexopt::Error> {
@@ -163,6 +166,7 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
     let mut max_width: f32 = 0.7;
     let mut max_height: f32 = 1.0;
     let mut adapter_index: usize = 0;
+    let mut hide_info: bool = false;
 
     while let Some(arg) = parser.next()? {
         match arg {
@@ -199,6 +203,9 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
             Short('H') | Long("max-height") => {
                 max_height = parser.value()?.parse()?;
                 overwrite_cache = true;
+            }
+            Short('I') | Long("hide-info") => {
+                hide_info = true;
             }
             Long("gpus") => {
                 let process_desc = pollster::block_on(core::ProcessDescriptor::init(0));
@@ -263,5 +270,6 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
         max_width,
         max_height,
         adapter_index,
+        hide_info,
     })
 }
