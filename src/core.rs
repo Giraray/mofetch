@@ -104,8 +104,10 @@ pub fn get_frames(config: &FfmpegConfig, max_width: u16, max_height: u16) -> FFm
     
     // compress source and retain aspect ratio if width or height exceed the max (from user args -W and -H)
     if width > max_width || height > max_height {
-        let preferred_aspect_ratio = max_width / max_height;
-        let source_aspect_ratio = width / height;
+        println!("width:{}, height:{} | maxwidth: {}, maxheight: {}",width,height, max_width,max_height);
+        let preferred_aspect_ratio = max_width as f32 / max_height as f32;
+        println!("pref: {}",preferred_aspect_ratio);
+        let source_aspect_ratio = width as f32 / height as f32;
         let scaled_resolution: (u16,u16) =
             if preferred_aspect_ratio > source_aspect_ratio {
                 print!("Adjusted width | ");

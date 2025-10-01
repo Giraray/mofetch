@@ -1,7 +1,7 @@
 //! script responsible for fetching sysinfo
 
 use sysinfo::{System};
-use std::time::{UNIX_EPOCH, SystemTime};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn get_uptime() -> String {
     let raw_boot_time = System::boot_time();
@@ -64,7 +64,7 @@ impl StaticInfo {
     }
 }
 
-fn get_static_info(sys: System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
+fn get_static_info(sys: &System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
     let host_name = InfoValuePair {
         name: String::from("Host Name"),
         value: System::host_name().unwrap(),
@@ -119,14 +119,16 @@ fn get_static_info(sys: System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
     return info;
 }
 
-fn get_dyn_info(sys: System) {
-    let uptime = get_uptime();
+fn get_dyn_info(sys: &System) -> f32 {
+    let cpu_usage = sys.global_cpu_usage();
+    // let uptime = get_uptime();
+    return cpu_usage;
 }
 
 // WIP
 pub fn sys_info_manager(gpu: wgpu::AdapterInfo, ascii_w: u32, ascii_h: u32) {
     let mut sys = System::new_all();
-    let static_info = get_static_info(sys, &gpu);
+    let static_info = get_static_info(&sys, &gpu);
 
     let info_array = static_info.as_array();
 
@@ -137,5 +139,12 @@ pub fn sys_info_manager(gpu: wgpu::AdapterInfo, ascii_w: u32, ascii_h: u32) {
         
         println!("{}{}{}{}",termion::cursor::Goto((ascii_w + 2) as u16, (i + 2) as u16),
             name_string, data.value, data.space.to_str());
+    }
+
+    loop {
+        std::thread::sleep(Duration::from_millis(1000));
+        sys.refresh_cpu_usage();
+        let cpu_usage = get_dyn_info(&sys);
+        println!("{}CPU usage: {:.3}%  ",termion::cursor::Goto((ascii_w + 2) as u16, 9), cpu_usage);
     }
 }
