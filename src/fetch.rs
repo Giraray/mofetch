@@ -55,12 +55,11 @@ struct StaticInfo {
     kernel: InfoValuePair,
     cpu: InfoValuePair,
     gpu: InfoValuePair,
-    uptime: InfoValuePair,
 }
 
 impl StaticInfo {
-    pub fn as_array(&self) -> [&InfoValuePair; 6] {
-        [&self.host_name, &self.os, &self.kernel, &self.cpu, &self.gpu, &self.uptime]
+    pub fn as_array(&self) -> [&InfoValuePair; 5] {
+        [&self.host_name, &self.os, &self.kernel, &self.cpu, &self.gpu]
     }
 }
 
@@ -114,7 +113,6 @@ fn get_static_info(sys: &System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
         kernel,
         cpu,
         gpu,
-        uptime,
     };
     return info;
 }
@@ -145,6 +143,8 @@ pub fn sys_info_manager(gpu: wgpu::AdapterInfo, ascii_w: u32, ascii_h: u32) {
         std::thread::sleep(Duration::from_millis(1000));
         sys.refresh_cpu_usage();
         let cpu_usage = get_dyn_info(&sys);
-        println!("{}CPU usage: {:.3}%  ",termion::cursor::Goto((ascii_w + 2) as u16, 9), cpu_usage);
+        let uptime = get_uptime();
+        println!("{}CPU usage: {:.3}%  ",termion::cursor::Goto((ascii_w + 2) as u16, 8), cpu_usage);
+        println!("{}Uptime: {}",termion::cursor::Goto((ascii_w + 2) as u16, 9), uptime);
     }
 }

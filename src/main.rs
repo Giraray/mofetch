@@ -7,9 +7,10 @@ use lexopt::Arg::{Long, Short};
 use lexopt::ValueExt;
 
 const TERM_FONT_DIMS: (u16,u16) = (10,22);
+const MOFETCH_VERSION: &str = "1.3.0";
 
 /// TODO:
-/// * Cacheless direct rendering to terminal 
+/// * Cacheless rendering to terminal by just storing frame buffers in memory
 fn main() {
     let args = parse_args().unwrap();
     let fps = args.fps;
@@ -23,6 +24,7 @@ fn main() {
     let draw_edges = args.draw_edges;
     let edge_threshold = args.edge_threshold;
     let hide_info = args.hide_info;
+    let verbose = args.verbose;
 
     let term_size_char = termion::terminal_size().unwrap();
 
@@ -31,11 +33,6 @@ fn main() {
 
     let term_height: u16 = (term_size_char.1 - 1) * TERM_FONT_DIMS.1;
     let max_height = (term_height as f32 * max_height).floor() as u16;
-
-    let ffmpeg_config = core::FfmpegConfig {
-        input_path: input.as_str(),
-        fps: &fps,
-    };
 
     let shader_config = core::utils::ShaderConfig {
         brightness,
@@ -76,14 +73,19 @@ fn main() {
         is_image = true;
     }
 
-    let mut config = core::ProgramConfig {
-        ffmpeg_config: &ffmpeg_config,
-        cache_path: &cache_path,
+    let mut fps_preferred = fps;
+    if overwrite_cache {
+        fps_preferred = get_preferred_fps(&input, fps, verbose);
+    }
+
+    let ffmpeg_config = core::FfmpegConfig {
+        input_path: input.as_str(),
+        fps: &fps_preferred,
     };
 
     // make cache file if it doesnt exist. make sfb or afb based on frame_count > 1
     if !afb_path_exists && !sfb_path_exists {
-        let ffmpeg_return = core::get_frames(&ffmpeg_config, max_width, max_height);
+        let ffmpeg_return = core::get_frames(&ffmpeg_config, max_width, max_height, verbose);
         if ffmpeg_return.frame_count == 1 {
             is_image = true;
             cache_path = format!("{}/{}.sfb",&cache_dir,input_name);
@@ -96,22 +98,48 @@ fn main() {
         std::fs::File::create(&cache_path).unwrap();
 
         cache_file = std::fs::File::options().append(true).open(&cache_path).unwrap(); // w cache file
-        cache_file.write(format!("[] fps={}\n",fps).as_bytes()).ok(); // write fps config in cache file
+        cache_file.write(format!("[] fps={}\n",fps_preferred).as_bytes()).ok(); // write fps config in cache file
 
         process_desc = pollster::block_on(core::ProcessDescriptor::init(adapter_index));
-        config = core::ProgramConfig {
-            ffmpeg_config: &ffmpeg_config,
-            cache_path: &cache_path,
-        };
+
         core::process_frames(&ffmpeg_return.frame_count, &process_desc, cache_file,
-            ffmpeg_return.width, ffmpeg_return.height, max_width, max_height, shader_config);
+            ffmpeg_return.width, ffmpeg_return.height, max_width, max_height, shader_config,
+            verbose,
+        );
     }
-    let frame_dims = read_frame_size(&config.cache_path);
+    let frame_dims = read_frame_size(&cache_path);
     std::thread::spawn(move || {
         if hide_info {return;}
         fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
     });
-    core::print_frame_loop(&config, is_image);
+    core::print_frame_loop(&cache_path, is_image);
+}
+
+/// Uses ffprobe to retrieve source fps and caps the user-defined fps with it. 
+/// This prevents unecessarily large framerates.
+fn get_preferred_fps(input_path: &String, user_fps: u16, verbose: bool) -> u16 {
+    let fps_stdout = std::process::Command::new("ffprobe")
+        .args(["-v","error","-of","default=noprint_wrappers=1:nokey=1",
+            "-show_entries","stream=r_frame_rate",input_path.as_str()])
+        .stdout(std::process::Stdio::piped())
+        .output()
+        .unwrap(); // this should get an output like "30/1"
+
+    let fps_output = String::from_utf8(fps_stdout.stdout).unwrap();
+    let fps_source: Vec<&str> = fps_output.split('/').collect();
+    let fps_denominator = fps_source[1].trim().parse::<u16>().unwrap();
+    let mut fps_source = fps_source[0].parse::<u16>().unwrap();
+
+    // output can be a fractional value, so we floor it
+    fps_source = (fps_source as f32 / fps_denominator as f32).floor() as u16;
+
+    let fps_preferred =
+        if user_fps > fps_source {
+            if verbose {println!("Chosen fps is greater than source fps. Capping fps to {}",fps_source);}
+            fps_source
+        }
+        else { user_fps };
+    return fps_preferred;
 }
 
 /// Reads the first frame to return the dimensions of the cache frames.
@@ -151,6 +179,7 @@ pub struct UserArgs {
     pub max_height: f32,
     pub adapter_index: usize,
     pub hide_info: bool,
+    pub verbose: bool,
 }
 
 fn parse_args() -> Result<UserArgs, lexopt::Error> {
@@ -167,9 +196,17 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
     let mut max_height: f32 = 1.0;
     let mut adapter_index: usize = 0;
     let mut hide_info: bool = false;
+    let mut verbose: bool = false;
 
     while let Some(arg) = parser.next()? {
         match arg {
+            Short('v') | Long("verbose") => {
+                verbose = true;
+            }
+            Short('V') | Long("version") => {
+                println!("mofetch {}",MOFETCH_VERSION);
+                std::process::exit(0);
+            }
             Short('i') | Long("input") => {
                 input_path = Some(parser.value()?.parse()?);
             }
@@ -220,11 +257,11 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
             }
 
             Short('h') | Short('?') | Long("help") => {
-                let help_intro = String::from("Mofetch is a system information fetching tool with fancy user-generated ASCII art");
-                let help_usage = String::from("Usage: mofetch [-i input-file-path] [options]");
+                let help_intro = String::from("mofetch is a system information fetching tool with fancy user-generated ASCII art");
+                let help_usage = String::from("Usage: mofetch [-i path-to-input] [options]");
                 println!("{}",help_intro);
                 println!("{}",help_usage);
-                println!("\nNOTE: Specifying pre-processing options or Shader options will force --overwrite-cache.");
+                println!("\nNOTE: Specifying pre-processing or shader options will force --overwrite-cache.");
 
                 let options = help_options::init_options();
                 for group in options {
@@ -271,5 +308,6 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
         max_height,
         adapter_index,
         hide_info,
+        verbose,
     })
 }

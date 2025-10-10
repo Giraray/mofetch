@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0
+### New
+- You can now use `--verbose` to see the flood of information generated during image processing.
+- Added `--version` to quickly get mofetch version.
+
+### Changes
+- Framerate is now capped to source framerate as upscaling the framerate usually doesn't yield great results.
+- System uptime is now updated periodically.
+
 ## 1.2.0
 ### New
 - Added a new user configuration `-I` `--hide-info`, which omits the system information from the process and only renders the ASCII thumbnail.
@@ -10,7 +19,7 @@
 
 ## 1.1.0
 ### New
-- Implemented shader configurations with the arguments --brightness, --contrast, --no-edges and --edge-threshold. --edge-threshold can be used to determine the edge strength required for the algorithm to render a tile as an edge.
+- Implemented shader configurations with the arguments `--brightness`, `--contrast`, `--no-edges` and `--edge-threshold`. `--edge-threshold` can be used to determine the edge strength required for the algorithm to render a tile as an edge.
 
 ### Fixes
 - Fixed an issue with ffprobe command not giving an output in get_frames()

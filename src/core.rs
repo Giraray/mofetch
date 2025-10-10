@@ -26,13 +26,6 @@ pub struct FfmpegConfig <'a> {
     pub fps: &'a u16,
 }
 
-pub struct ProgramConfig <'a> {
-    pub ffmpeg_config: &'a FfmpegConfig<'a>,
-    pub cache_path: &'a str,
-    // shader config
-    // console render config
-}
-
 // Resolutions for ascii tiles;
 // Each tile will always have a fixed size determined by the font size of the terminal. Mine is (10,22).
 // The tile resolution denotes how many pixels are used in each tile. All of the different resolutions 
@@ -74,24 +67,21 @@ fn get_frames_path() -> String {
 
 /// Runs the ffmpeg command to break down the input from a path into png frames, 
 /// storing them in a `frames` directory.
-///
-/// TODO:
-/// * Learn how to work with dynamic paths
-pub fn get_frames(config: &FfmpegConfig, max_width: u16, max_height: u16) -> FFmpegReturn {
+pub fn get_frames(config: &FfmpegConfig, max_width: u16, max_height: u16, verbose: bool) -> FFmpegReturn {
     // make sure output dir is cleared
     let frames_path = get_frames_path();
     fs::remove_dir_all(&frames_path).ok();
     fs::create_dir_all(&frames_path).unwrap();
 
     // get media dimensions, used for resizing the source and choosing a tile resolution later
-    let stdout = Command::new("ffprobe")
+    let dims_stdout = Command::new("ffprobe")
         .args(["-hide_banner", "-select_streams", "v:0", "-show_entries",
             "stream=width,height","-of", "csv=s=x:p=0", config.input_path])
         .stdout(std::process::Stdio::piped())
         .output()
         .unwrap();
 
-    let output = String::from_utf8(stdout.stdout).unwrap();
+    let output = String::from_utf8(dims_stdout.stdout).unwrap();
     let dimensions: Vec<&str> = output.split('x').collect();
 
     let width = dimensions[0].parse::<u16>().unwrap();
@@ -100,36 +90,43 @@ pub fn get_frames(config: &FfmpegConfig, max_width: u16, max_height: u16) -> FFm
     // run frame conversion ffmpeg with path and config
     let fps_string = config.fps.to_string();
     let mut ffmpeg_process = Command::new("ffmpeg");
-    ffmpeg_process.args(["-hide_banner", "-i", config.input_path,"-r", fps_string.as_str()]);
+    let ffmpeg_log_level = if verbose {"info"} else {"fatal"};
+    ffmpeg_process.args(["-hide_banner", "-loglevel",ffmpeg_log_level, "-i", config.input_path,"-r", fps_string.as_str()]);
     
     // compress source and retain aspect ratio if width or height exceed the max (from user args -W and -H)
     if width > max_width || height > max_height {
-        println!("width:{}, height:{} | maxwidth: {}, maxheight: {}",width,height, max_width,max_height);
         let preferred_aspect_ratio = max_width as f32 / max_height as f32;
-        println!("pref: {}",preferred_aspect_ratio);
         let source_aspect_ratio = width as f32 / height as f32;
+
+        let adjustment;
         let scaled_resolution: (u16,u16) =
             if preferred_aspect_ratio > source_aspect_ratio {
-                print!("Adjusted width | ");
+                adjustment = String::from("width");
                 ((width as f32 * (max_height as f32 / height as f32)) as u16, max_height)
             }
             else {
-                print!("Adjusted height | ");
+                adjustment = String::from("height");
                 (max_width, (height as f32 * (max_width as f32 / width as f32)) as u16)
         };
-        println!("x:{} y:{}",scaled_resolution.0,scaled_resolution.1);
         let scaled_res_string = format!("scale={}:{}",scaled_resolution.0, scaled_resolution.1);
         let compression_args = ("-vf",&scaled_res_string);
         ffmpeg_process.args([compression_args.0,compression_args.1]);
+
+        if verbose {
+            println!("source_width: {}, source_height: {} | max_width: {}, max_height: {}",width,height, max_width,max_height);
+            if !adjustment.is_empty() {
+                println!("Adjusted {} | width: {}, height: {}",adjustment,scaled_resolution.0,scaled_resolution.1);
+            }
+        }
     }
 
-    // define output
-    ffmpeg_process.arg(format!("{}/output_frame_%d.png", frames_path));
+    if verbose {println!("");}
 
-    // todo: limit fps to source fps
+    println!("Processing source...");
+    ffmpeg_process.arg(format!("{}/output_frame_%d.png", frames_path));
     ffmpeg_process.status().unwrap();
 
-    println!("Finished mapping frames");
+    if verbose {println!("");}
 
     // count amount of frames to determine if output is a video or image and should be looped or not
     let paths = fs::read_dir(&frames_path).unwrap();
@@ -221,11 +218,9 @@ impl Benchmark {
 
 /// Processes each frame with the shader process and caches the resulting ASCII 
 /// text buffers.
-/// 
-/// TODO:
-/// * Shader config
 pub fn process_frames(frame_count: &i32, process_desc: &ProcessDescriptor,
     cache_file: File, width: u16, height: u16, max_width: u16, max_height: u16, shader_config: utils::ShaderConfig,
+    verbose: bool,
 ) {
     println!("Processing frames...");
 
@@ -284,14 +279,14 @@ pub fn process_frames(frame_count: &i32, process_desc: &ProcessDescriptor,
     let is_image = if *frame_count == 1 {1} else {0};
     let mut benchmark = Benchmark::init();
 
-    println!("Using GPU adapter: {:?}", process_desc.adapter.get_info());
+    if verbose { println!("Using GPU adapter: {:?}", process_desc.adapter.get_info().name); }
 
     let frames_path = get_frames_path();
     for n in 1..frame_count + is_image {
         let frame_path = format!("{}/output_frame_{}.png",frames_path, n);
         let new_benchmark = pollster::block_on(shader_process(
             frame_path.as_str(), &process_desc, &cache_file,&dog_pipeline,&sobel_pipeline,&ds_pipeline,
-            target_res, &shader_config,
+            target_res, &shader_config, verbose,
         ));
         
         benchmark.total_time += new_benchmark.total_time;
@@ -301,10 +296,12 @@ pub fn process_frames(frame_count: &i32, process_desc: &ProcessDescriptor,
     }
 
     // get average benchmark times
-    benchmark.average(*frame_count as u32);
-    println!("Total processing time: {:.3?} | AVG: image_decode: {:.3?} | render: {:.3?} | cache: {:.3?}",
-        benchmark.total_time, benchmark.image_decode_time, benchmark.render_time, benchmark.cache_time);
-    
+    if verbose {
+        benchmark.average(*frame_count as u32);
+        println!("Total processing time: {:.3?} | AVERAGE: image_decode: {:.3?} | render: {:.3?} | cache: {:.3?}",
+            benchmark.total_time, benchmark.image_decode_time, benchmark.render_time, benchmark.cache_time);
+    }
+
     fs::remove_dir_all(frames_path).ok();
 }
 
@@ -313,8 +310,8 @@ struct CursorPos {
     y: u16,
 }
 /// Renders and loops the ASCII txt frames through stdout.
-pub fn print_frame_loop(config: &ProgramConfig, is_image: bool) {
-    let file_string = read_to_string(config.cache_path).unwrap();
+pub fn print_frame_loop(cache_path: &str, is_image: bool) {
+    let file_string = read_to_string(cache_path).unwrap();
 
     // read fps configuration from cache file
     let config_line = file_string.lines().nth(0).unwrap();
@@ -351,6 +348,7 @@ pub fn print_frame_loop(config: &ProgramConfig, is_image: bool) {
             }
         }
         if is_image {
+            // TODO: breaking this loop also kills the fetch thread. Maybe add an arbitrary loop here?
             print!("{}{}",termion::cursor::Goto(cursor_pos.x,cursor_pos.y),frame_buffer);
             break;
         }
@@ -371,7 +369,7 @@ const ASCII_EDGES: &str = "|/_\\";
 pub async fn shader_process(
     frame_path: &str, desc: &ProcessDescriptor, file: &File, dog_pipeline: &RenderPipeline,
     sobel_pipeline: &RenderPipeline, ds_pipeline: &ComputePipeline, wg_size: WorkgroupSize,
-    shader_config: &utils::ShaderConfig,
+    shader_config: &utils::ShaderConfig, verbose: bool,
 ) -> Benchmark {
 
     let device = &desc.device;
@@ -477,6 +475,7 @@ pub async fn shader_process(
         texture_size: &texture_size,
     }, &device, &queue, wg_size);
 
+    //// !!! Only uncomment when input is an image !!!
     //// these  two functions can be used to generate images from each step in the shader program
     // copy_to_img(&CopyDescriptor {
     //     output_buffer: &dog_shader.output_buffer,
@@ -488,12 +487,11 @@ pub async fn shader_process(
     //     texture_size: &texture_size
     // }, &device).await;
 
-    // copy data from output_buffer into a CPU mappable buffer
-
     let render_time = benchmark_render.elapsed();
 
     let benchmark_cache = Instant::now();
 
+    // copy data from output_buffer into a CPU mappable buffer
     let data = copy_data(&ds_shader.output_buffer, &device).await;
 
     // append the processed text buffer to the last frame in cache file
@@ -501,9 +499,13 @@ pub async fn shader_process(
 
     let cache_time = benchmark_cache.elapsed();
     let total_elapsed_time = image_decode_time + write_texture_time + render_time + cache_time;
-    println!("Frame processed  wg_size: ({},{}) | Total: {:.5?} | image_decode: {:.5?}, render: {:.5?}, cache: {:.5?}",
-        wg_size.x, wg_size.y, total_elapsed_time, image_decode_time, render_time, cache_time
-    );
+
+    if verbose {
+        println!("Frame processed  wg_size: ({},{}) | Total: {:.5?} | image_decode: {:.5?}, render: {:.5?}, cache: {:.5?}",
+            wg_size.x, wg_size.y, total_elapsed_time, image_decode_time, render_time, cache_time
+        );
+    }
+
     return Benchmark {
         total_time: total_elapsed_time,
         image_decode_time,
