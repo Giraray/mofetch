@@ -28,7 +28,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let version = HelpOption {
         short: Some("v".into()),
         long: Some("version".into()),
-        desc: Some("Show mofetch version (not implemented yet)".into()),
+        desc: Some("Show mofetch version".into()),
         datatype: None,
     };
     information_options.push(version);
@@ -37,7 +37,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let verbose = HelpOption {
         short: Some("V".into()),
         long: Some("verbose".into()),
-        desc: Some("Show process information (not implemented yet)".into()),
+        desc: Some("Show process information".into()),
         datatype: None,
     };
     information_options.push(verbose);
@@ -72,7 +72,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let overwrite_cache = HelpOption {
         short: Some("o".into()),
         long: Some("overwrite-cache".into()),
-        desc: Some("Ignore and overwrite existing cache".into()),
+        desc: Some("Ignore and overwrite existing cache. Useful if the cache is corrupt".into()),
         datatype: None,
     };
     pre_processing_options.push(overwrite_cache);
@@ -81,7 +81,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_width = HelpOption {
         short: Some("W".into()),
         long: Some("max-width".into()),
-        desc: Some("Set max width of source image to (0..n) * 100% of terminal width".into()),
+        desc: Some("Set max width of source image to (0..n) * 100 % of terminal width".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_width);
@@ -90,7 +90,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_height = HelpOption {
         short: Some("H".into()),
         long: Some("max-height".into()),
-        desc: Some("Set max height of source image to (0..n) * 100% of terminal height".into()),
+        desc: Some("Set max height of source image to (0..n) * 100 % of terminal height".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_height);
