@@ -7,14 +7,14 @@ use lexopt::Arg::{Long, Short};
 use lexopt::ValueExt;
 
 const TERM_FONT_DIMS: (u16,u16) = (10,22);
-const MOFETCH_VERSION: &str = "1.3.0";
+const MOFETCH_VERSION: &str = "1.4.0";
 
 /// TODO:
 /// * Cacheless rendering to terminal by just storing frame buffers in memory
 fn main() {
-    let args = parse_args().unwrap();
+    let args = parse_args().expect("Error: Use -i to specify input. Use -h for help");
     let fps = args.fps;
-    let input = args.input_path.unwrap();
+    let input = args.input.unwrap();
     let overwrite_cache = args.overwrite_cache;
     let max_width = args.max_width;
     let max_height: f32 = args.max_height;
@@ -107,12 +107,17 @@ fn main() {
             verbose,
         );
     }
+
+    let adapter_clone = process_desc.adapter.clone();
     let frame_dims = read_frame_size(&cache_path);
     std::thread::spawn(move || {
-        if hide_info {return;}
-        fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
+        if hide_info || is_image {return;}
+        fetch::sys_info_manager(adapter_clone.get_info(), frame_dims.0, frame_dims.1);
     });
     core::print_frame_loop(&cache_path, is_image);
+
+    // this should be inaccessible unless is_image is true
+    fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
 }
 
 /// Uses ffprobe to retrieve source fps and caps the user-defined fps with it. 
@@ -166,83 +171,57 @@ pub fn read_frame_size(path: &str) -> (u32,u32) {
     return (render_width, render_height);
 }
 
-pub struct UserArgs {
-    pub input_path: Option<String>,
-    pub fps: u16,
-    pub brightness: f32,
-    pub contrast: f32,
-    pub draw_edges: bool,
-    pub edge_threshold: f32,
-    // pub characterSet: Option<String>,
-    pub overwrite_cache: bool,
-    pub max_width: f32,
-    pub max_height: f32,
-    pub adapter_index: usize,
-    pub hide_info: bool,
-    pub verbose: bool,
-}
-
-fn parse_args() -> Result<UserArgs, lexopt::Error> {
+use fetch::config_manager::OptionsDefaults;
+fn parse_args() -> Result<OptionsDefaults, lexopt::Error> {
     let mut parser = lexopt::Parser::from_env();
 
-    let mut input_path: Option<String> = None;
-    let mut fps: u16 = 24;
-    let mut brightness: f32 = 1.1;
-    let mut contrast: f32 = 1.1;
-    let mut draw_edges: bool = true;
-    let mut edge_threshold: f32 = 0.3;
-    let mut overwrite_cache: bool = false;
-    let mut max_width: f32 = 0.7;
-    let mut max_height: f32 = 1.0;
-    let mut adapter_index: usize = 0;
-    let mut hide_info: bool = false;
-    let mut verbose: bool = false;
+    let mut config = fetch::get_config_defaults();
 
     while let Some(arg) = parser.next()? {
         match arg {
             Short('v') | Long("verbose") => {
-                verbose = true;
+                config.verbose = true;
             }
             Short('V') | Long("version") => {
                 println!("mofetch {}",MOFETCH_VERSION);
                 std::process::exit(0);
             }
             Short('i') | Long("input") => {
-                input_path = Some(parser.value()?.parse()?);
+                config.input = Some(parser.value()?.parse()?);
             }
             Short('o') | Long("overwrite-cache") => {
-                overwrite_cache = true;
+                config.overwrite_cache = true;
             }
             Short('f') | Long("fps") => {
-                fps = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.fps = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('b') | Long("brightness") => {
-                brightness = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.brightness = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('c') | Long("contrast") => {
-                contrast = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.contrast = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('n') | Long("no-edges") => {
-                draw_edges = false;
-                overwrite_cache = true;
+                config.draw_edges = false;
+                config.overwrite_cache = true;
             }
             Short('t') | Long("edge-threshold") => {
-                edge_threshold = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.edge_threshold = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('W') | Long("max-width") => {
-                max_width = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.max_width = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('H') | Long("max-height") => {
-                max_height = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.max_height = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
             Short('I') | Long("hide-info") => {
-                hide_info = true;
+                config.hide_info = true;
             }
             Long("gpus") => {
                 let process_desc = pollster::block_on(core::ProcessDescriptor::init(0));
@@ -252,8 +231,8 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
                 std::process::exit(0);
             }
             Short('a') | Long("adapter-index") => {
-                adapter_index = parser.value()?.parse()?;
-                overwrite_cache = true;
+                config.adapter_index = parser.value()?.parse()?;
+                config.overwrite_cache = true;
             }
 
             Short('h') | Short('?') | Long("help") => {
@@ -291,23 +270,10 @@ fn parse_args() -> Result<UserArgs, lexopt::Error> {
             _ => return Err(arg.unexpected()),
         }
     }
-    if input_path.is_none() {
+    if config.input.is_none() {
         println!("Error: Expected file input. Use \"mofetch --help\" for usage help");
         std::process::exit(0);
     }
 
-    Ok(UserArgs {
-        input_path,
-        fps,
-        brightness,
-        contrast,
-        draw_edges,
-        edge_threshold,
-        overwrite_cache,
-        max_width,
-        max_height,
-        adapter_index,
-        hide_info,
-        verbose,
-    })
+    Ok(config)
 }

@@ -1,3 +1,7 @@
+//! This file is responsible for every step in the processing pipeline, from source processing, 
+//! post-processing and then to frame buffer caching. It also includes the function to render 
+//! frame buffers to a terminal.
+
 #[path ="./shaders/dog_shader.rs"]
 mod dog_shader;
 

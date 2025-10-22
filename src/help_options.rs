@@ -81,7 +81,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_width = HelpOption {
         short: Some("W".into()),
         long: Some("max-width".into()),
-        desc: Some("Set max width of source image to (0..n) * 100 % of terminal width".into()),
+        desc: Some("Set max width of source image to (0..1) % of terminal width".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_width);
@@ -90,7 +90,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let max_height = HelpOption {
         short: Some("H".into()),
         long: Some("max-height".into()),
-        desc: Some("Set max height of source image to (0..n) * 100 % of terminal height".into()),
+        desc: Some("Set max height of source image to (0..1) % of terminal height".into()),
         datatype: Some("float".into()),
     };
     pre_processing_options.push(max_height);
@@ -99,7 +99,7 @@ pub fn init_options() -> Vec<OptionGroup> {
     let fps = HelpOption {
         short: Some("f".into()),
         long: Some("fps".into()),
-        desc: Some("Set the frames per second".into()),
+        desc: Some("Set the frames per second (capped to source fps)".into()),
         datatype: Some("int".into()),
     };
     pre_processing_options.push(fps);

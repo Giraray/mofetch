@@ -53,12 +53,7 @@ fn contrast(input: vec4<f32>) -> vec4<f32> {
     return tex;
 }
 
-// Rust declares wg_x and wg_y during runtime. WGSL compiler does not allow 
-// runtime expressions for @workgroup_size (which we need to determine 
-// dynamically to account for different font size ratios), so we modify the file 
-// before compiling the shader.
-
-// TODO: fuck this man there HAS to be a way to compile at runtime
+// A designated file for each wg_size is gross, but I do not know of a better way
 const wg_x = 4;
 const wg_y = 9;
 const x = f32(wg_x);
@@ -151,6 +146,7 @@ fn main(
         }
     }
 
+    // todo: figure out why i decided to sum the workgroup lumas but never use them ???
     // if no edges drawn, then calculate average brightness
     if(res == 0.0) {
         var sum = 0.0;

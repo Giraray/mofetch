@@ -142,7 +142,5 @@ fn getFragLuma(offsetUV: vec2<f32>) -> f32 {
         }
     }
 
-    // return vec4(uv,0.0,1.0);
     return vec4(c, 1.0);
-    // return vec4(vec3(g), 1.0);
 }
