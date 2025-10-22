@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.4.0
+### New
+- `mofetch/config.toml` is generated in your user config directory the first time you use mofetch. You can tweak the default settings for all user arguments here. You can also customize the system info key names and their values.
+
+### Changes
+- Changed some text in `--help` for clarity.
+
+### Fixes
+- Fixed a bug where the program would exit upon rendering static images, preventing the fetching and displaying of system info.
+
 ## 1.3.0
 ### New
 - You can now use `--verbose` to see the flood of information generated during image processing.

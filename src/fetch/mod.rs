@@ -1,7 +1,14 @@
-//! script responsible for fetching sysinfo
+//! script responsible for fetching sysinfo. The script is very bare-bones, and can 
+//! be fleshed out later for additional features and polish.
+
+pub mod config_manager;
 
 use sysinfo::{System};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+
+pub fn get_config_defaults() -> config_manager::OptionsDefaults {
+    return config_manager::retrieve_config().options_defaults;
+}
 
 fn get_uptime() -> String {
     let raw_boot_time = System::boot_time();
@@ -63,41 +70,44 @@ impl StaticInfo {
     }
 }
 
-fn get_static_info(sys: &System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
+fn determine_value<T: std::fmt::Display>(system_default: T, key: &String) -> String {
+    let return_val: String = if key == "system_default" {
+        format!("{}",system_default)
+    } else {
+        key.to_string()
+    };
+    return return_val;
+}
+
+fn get_static_info(config: &config_manager::Config, sys: &System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
     let host_name = InfoValuePair {
-        name: String::from("Host Name"),
-        value: System::host_name().unwrap(),
+        name: String::from(""), // not used
+        value: determine_value(System::host_name().unwrap(), &config.key_values.host_name),
         omit_name: true,
-        space: SpaceType::DoubleLine,
+        space: SpaceType::DoubleLine, // all spaces unused currently
     };
     
     let os = InfoValuePair {
-        name: String::from("OS"),
-        value: format!("{} ({})",System::name().unwrap(),System::os_version().unwrap()),
+        name: config.key_names.os.clone(),
+        value: determine_value(format!("{} ({})",System::name().unwrap(),System::os_version().unwrap()),&config.key_values.os),
         omit_name: false,
         space: SpaceType::None,
     };
     let kernel = InfoValuePair {
-        name: String::from("Kernel"),
-        value: System::kernel_long_version(),
+        name: config.key_names.kernel.clone(),
+        value: determine_value(System::kernel_long_version(),&config.key_values.kernel),
         omit_name: false,
         space: SpaceType::None,
     };
     let cpu = InfoValuePair {
-        name: String::from("CPU"),
-        value: String::from(sys.cpus()[0].brand()),
+        name: config.key_names.cpu.clone(),
+        value: determine_value(String::from(sys.cpus()[0].brand()),&config.key_values.cpu),
         omit_name: false,
         space: SpaceType::None,
     };
     let gpu = InfoValuePair {
-        name: String::from("GPU"),
-        value: format!("{} [{:?}]",gpu.name, gpu.device_type),
-        omit_name: false,
-        space: SpaceType::None,
-    };
-    let uptime = InfoValuePair {
-        name: String::from("Uptime"),
-        value: get_uptime(),
+        name: config.key_names.gpu.clone(),
+        value: determine_value(format!("{} [{:?}]",gpu.name, gpu.device_type),&config.key_values.gpu),
         omit_name: false,
         space: SpaceType::None,
     };
@@ -117,16 +127,11 @@ fn get_static_info(sys: &System, gpu: &wgpu::AdapterInfo) -> StaticInfo {
     return info;
 }
 
-fn get_dyn_info(sys: &System) -> f32 {
-    let cpu_usage = sys.global_cpu_usage();
-    // let uptime = get_uptime();
-    return cpu_usage;
-}
-
 // WIP
 pub fn sys_info_manager(gpu: wgpu::AdapterInfo, ascii_w: u32, ascii_h: u32) {
+    let config = config_manager::retrieve_config();
     let mut sys = System::new_all();
-    let static_info = get_static_info(&sys, &gpu);
+    let static_info = get_static_info(&config, &sys, &gpu);
 
     let info_array = static_info.as_array();
 
@@ -135,16 +140,16 @@ pub fn sys_info_manager(gpu: wgpu::AdapterInfo, ascii_w: u32, ascii_h: u32) {
             if data.omit_name {String::from("")}
             else {format!("{}: ", data.name)};
         
-        println!("{}{}{}{}",termion::cursor::Goto((ascii_w + 2) as u16, (i + 2) as u16),
-            name_string, data.value, data.space.to_str());
+        println!("{}{}{}",termion::cursor::Goto((ascii_w + 2) as u16, (i + 2) as u16),
+            name_string, data.value);
     }
 
     loop {
         std::thread::sleep(Duration::from_millis(1000));
         sys.refresh_cpu_usage();
-        let cpu_usage = get_dyn_info(&sys);
+        let cpu_usage = sys.global_cpu_usage();
         let uptime = get_uptime();
-        println!("{}CPU usage: {:.3}%  ",termion::cursor::Goto((ascii_w + 2) as u16, 8), cpu_usage);
-        println!("{}Uptime: {}",termion::cursor::Goto((ascii_w + 2) as u16, 9), uptime);
+        println!("{}{}: {:.3}%  ",termion::cursor::Goto((ascii_w + 2) as u16, 8), &config.key_names.cpu_usage, cpu_usage);
+        println!("{}{}: {}",termion::cursor::Goto((ascii_w + 2) as u16, 9), &config.key_names.uptime, uptime);
     }
 }
