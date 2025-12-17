@@ -4,6 +4,7 @@ utilizing the GPU to make beautiful edge-lines for the ASCII image.
 
 ### Install
 PPA repository coming soon!
+
 Currently, the only way to use this project is to build it manually using cargo.
 
 ### Support and dependencies
