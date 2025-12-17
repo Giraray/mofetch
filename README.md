@@ -2,6 +2,10 @@
 mofetch is a Neofetch-like tool to fetch system information to a terminal, with the addition of an animated, user-generated ASCII thumbnail. The thumbnail is a [wgpu](https://github.com/gfx-rs/wgpu) implementation of [Acerola's ASCII algorithm](https://www.youtube.com/watch?v=gg40RWiaHRY),
 utilizing the GPU to make beautiful edge-lines for the ASCII image.
 
+### Install
+PPA repository coming soon!
+Currently, the only way to use this project is to build it manually using cargo.
+
 ### Support and dependencies
 There is currently only support for Linux.
 
