@@ -37,7 +37,7 @@ struct VertexShaderOutput {
 }
 
 const PI : f32 = 3.141592653589793238;
-const radialDiv : f32 = 1.0/16.0;
+const RADIAL_DIV : f32 = 1.0/16.0; // radial divider
 
 // honestly not sure why we're getting the luminance of a binary texel
 fn getFragLuma(offsetUV: vec2<f32>) -> f32 {
@@ -55,7 +55,7 @@ fn getFragLuma(offsetUV: vec2<f32>) -> f32 {
     var stepy = stepValue / u_res.resolution.y;
 
     var kernel1 = 1.0;
-    var kernel2 = 2.0; // ?
+    var kernel2 = 2.0;
 
     var horizontalSobelMatrix = array<f32, 9>(
         -kernel1, 0.0, kernel1,
@@ -106,7 +106,7 @@ fn getFragLuma(offsetUV: vec2<f32>) -> f32 {
 
     var g = sqrt((pow(gx,2.0) + pow(gy,2.0))); // aggregates all sides
 
-    var c = vec3(0.0);
+    var color = vec3(0.0);
     var red = vec3(1.0,0.0,0.0);
     var green = vec3(0.0,1.0,0.0);
     var blue = vec3(0.0,0.0,1.0);
@@ -118,29 +118,30 @@ fn getFragLuma(offsetUV: vec2<f32>) -> f32 {
     if(g > 0.0) {
         // get gradient vector
         var t = atan2(gy, gx); // theta
-        t = (t/PI) * 0.5 + 0.5;
-        var s = radialDiv;
+        t = (t/PI) * 0.5 + 0.5; // normalize theta
+        var s = RADIAL_DIV;
 
+        // quantize gradient vector to 4 different types
         // green
         if((t >= s && t <= 3.0*s) || (t >= 0.5 + s && t <= 0.5 + 3.0*s)) {
-            c = green;
+            color = green;
         }
 
         // yellow
         if((t >= 0.25 + s && t <= 0.25 + 3.0*s) || (t >= 0.75 + s && t <= 0.75 + 3.0*s)) {
-            c = yellow;
+            color = yellow;
         }
 
         // red
         if((t >= 1.0 - s || t <= s) || (t >= 0.5 - s && t <= 0.5 + s)) {
-            c = red;
+            color = red;
         }
 
         // blue
         if((t >= 0.25 - s && t <= 0.25 + s) || (t >= 0.75 - s && t <= 0.75 + s)) {
-            c = blue;
+            color = blue;
         }
     }
 
-    return vec4(c, 1.0);
+    return vec4(color, 1.0);
 }

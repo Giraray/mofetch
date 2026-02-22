@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+### Changes
+- Applied previously unused luminance aggregation for ASCII pixel conversion. This improves the quality of the render.
+
 ## 1.4.0
 ### New
 - `mofetch/config.toml` is generated in your user config directory the first time you use mofetch. You can tweak the default settings for all user arguments here. You can also customize the system info key names and their values.

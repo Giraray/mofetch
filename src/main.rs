@@ -7,7 +7,7 @@ use lexopt::Arg::{Long, Short};
 use lexopt::ValueExt;
 
 const TERM_FONT_DIMS: (u16,u16) = (10,22);
-const MOFETCH_VERSION: &str = "1.4.0";
+const MOFETCH_VERSION: &str = "1.4.1";
 
 /// TODO:
 /// * Cacheless rendering to terminal by just storing frame buffers in memory
@@ -117,7 +117,9 @@ fn main() {
     core::print_frame_loop(&cache_path, is_image);
 
     // this should be inaccessible unless is_image is true
-    fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
+    if !hide_info {
+        fetch::sys_info_manager(process_desc.adapter.get_info(), frame_dims.0, frame_dims.1);
+    }
 }
 
 /// Uses ffprobe to retrieve source fps and caps the user-defined fps with it. 
