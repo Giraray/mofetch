@@ -146,17 +146,17 @@ fn main(
         }
     }
 
-    // todo: figure out why i decided to sum the workgroup lumas but never use them ???
     // if no edges drawn, then calculate average brightness
     if(res == 0.0) {
+
         var sum = 0.0;
         for(var i = 0; i < wg_x; i++) {
             for(var j = 0; j < wg_y; j++) {
-                sum += pow(tile[i][j].luma, 1.3);
+                sum += tile[i][j].luma;
             }
         }
-        // res = quantize(sum/TILE_DIM);
-        res = quantize(pow(tile[0][0].luma, 1.1));
+        res = quantize(sum/TILE_DIM);
+        
     }
  
     var coords_f = vec2(f32(coords.x), f32(coords.y));
